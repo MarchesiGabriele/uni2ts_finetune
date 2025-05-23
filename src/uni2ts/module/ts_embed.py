@@ -109,7 +109,7 @@ class MultiInSizeLinear(nn.Module):
             f"dtype={self.weight.dtype}"
         )
 
-
+# used in MoiraiMoEModule
 class FeatLinear(nn.Module):
     def __init__(
         self,

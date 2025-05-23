@@ -1,0 +1,77 @@
+===========================
+Layer Breakdown
+===========================
+
+1. module.encoder.layers.[x] -> x is the transformerEncoderLayer index from 0 to num_layers-1
+----------------------------
+
+  A. Self-Attention (self_attn)
+     - q_proj.weight
+     - q_norm.weight
+     - k_proj.weight
+     - k_norm.weight
+     - v_proj.weight
+     - out_proj.weight
+     - var_attn_bias.emb.weight
+
+  B. Feed-Forward Network (ffn)
+     - fc1.weight
+     - fc2.weight
+     - fc_gate.weight
+
+  C. Normalization (norm)
+     - norm1.weight
+     - norm2.weight
+
+
+2. module.encoder
+-----------------
+  - norm.weight -> layerNorm applied after the encoder
+
+
+3. module.param_proj.proj -> output projection, 0-4 indicates the 4 distributions of the mixture
+--------------------------
+
+  A. components.0
+     - df.weight
+     - df.bias
+     - scale.weight
+     - scale.bias
+     - loc.weight
+     - loc.bias
+
+  B. components.1
+     - loc.weight
+     - loc.bias
+
+  C. components.2
+     - logits.weight
+     - logits.bias
+     - total_count.weight
+     - total_count.bias
+
+  D. components.3
+     - loc.weight
+     - loc.bias
+     - scale.weight
+     - scale.bias
+
+  E. weights_logits
+     - weights_logits.weight
+     - weights_logits.bias
+
+
+4. module
+---------
+  - in_proj.weight
+  - in_proj.bias
+  - mask_encoding.weight -> embedding layer for masked values
+
+
+===========================
+Macro-categorie totali:
+- module.encoder.layers
+- module.encoder
+- module.param_proj.proj
+- module
+===========================

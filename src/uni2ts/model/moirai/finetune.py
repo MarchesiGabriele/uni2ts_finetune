@@ -264,9 +264,32 @@ class MoiraiFinetune(L.LightningModule):
             nn.LayerNorm,
         )
 
+        frozen_modules = ["in_projection", "mask_encoding", "encoder"] 
+
+        modules_prefix =  {
+            "encoder": ["module.encoder"],
+            "mask_encoding": ["module.mask_encoding"],
+            "out_projection": ["module.param_proj.proj"],
+            "in_projection": ["module.in_proj", "module.mask_encoding"],
+        }
+
+        print("\n\n FROZEN MODULES:")
+        print(frozen_modules, "\n\n")
+        print("\n\n NON FROZEN MODULES:")
+        print([a for a in modules_prefix.keys() if a not in frozen_modules], "\n\n")
+
+        for mn, m in self.named_modules():
+            for pn, p in m.named_parameters():
+                for module_name, prefixes in modules_prefix.items():
+                    if module_name in frozen_modules:
+                        if any(pn.startswith(prefix) for prefix in prefixes):
+                            p.requires_grad = False
+                
+
         for mn, m in self.named_modules():
             for pn, p in m.named_parameters():
                 if not p.requires_grad:
+                    # print(f"Parameter {pn} does not require grad")
                     continue
 
                 fpn = f"{mn}.{pn}" if mn else pn
@@ -279,6 +302,8 @@ class MoiraiFinetune(L.LightningModule):
 
         # validate that we considered every parameter
         param_dict = {pn: p for pn, p in self.named_parameters() if p.requires_grad}
+        print("\n\n LEARNING PARAMETERS:")
+        # print(list(param_dict.keys()), "\n\n")
         inter_params = decay & no_decay
         union_params = decay | no_decay
         assert (

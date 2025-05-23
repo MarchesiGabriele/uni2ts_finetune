@@ -158,13 +158,13 @@ class MoiraiModule(
         :param patch_size: patch size for each token
         :return: predictive distribution
         """
-        loc, scale = self.scaler(
+        loc, scale = self.scaler( # compute mean and std of the data 
             target,
             observed_mask * ~prediction_mask.unsqueeze(-1),
             sample_id,
             variate_id,
         )
-        scaled_target = (target - loc) / scale
+        scaled_target = (target - loc) / scale # normalize the data
         reprs = self.in_proj(scaled_target, patch_size)
         masked_reprs = mask_fill(reprs, prediction_mask, self.mask_encoding.weight)
         reprs = self.encoder(
