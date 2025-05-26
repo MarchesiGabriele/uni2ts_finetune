@@ -264,10 +264,38 @@ class MoiraiFinetune(L.LightningModule):
             nn.LayerNorm,
         )
 
+        # TODO: MOVE THIS TO A CONFIG FILE
+        ######################################
+        # To freeze the entire encoder, put encoder in the frozen_modules list and set num_unfrozen_encoder_layers = 0
+        # To freeze entire layers of the encoder, put encoder in the frozen_modules list, set num_unfrozen_encoder_layers to the number of layers to keep unfrozen and set to 
+
         frozen_modules = ["in_projection", "mask_encoding", "encoder"] 
+        num_unfrozen_encoder_layers = 1 # if 0, all encoder layers are frozen (else, the last num_unfrozen_encoder_layers are unfrozen)
+        # if I have unfrozen encoder layers, decide which components should stay frozen (none are frozen by default)
+        freeze_attn = True 
+        freeze_ffn = False
+        freeze_norm = False 
+
+        ######################################
+
+
+        assert(not(freeze_attn and freeze_ffn and freeze_norm) and num_unfrozen_encoder_layers > 0)
+
+        frozen_encoder_layers = []
+        for i in range(self.module.num_layers):
+            if i >= self.module.num_layers - num_unfrozen_encoder_layers:
+                if freeze_attn:
+                    frozen_encoder_layers.append("module.encoder.layers.{}.self_attn".format(i))
+                if freeze_ffn:
+                    frozen_encoder_layers.append("module.encoder.layers.{}.ffn".format(i))
+                if freeze_norm:
+                    frozen_encoder_layers.append("module.encoder.layers.{}.norm".format(i))
+            else:
+                frozen_encoder_layers.append("module.encoder.layers.{}".format(i))
+
 
         modules_prefix =  {
-            "encoder": ["module.encoder"],
+            "encoder": ["module.encoder"] if num_unfrozen_encoder_layers == 0 else frozen_encoder_layers,
             "mask_encoding": ["module.mask_encoding"],
             "out_projection": ["module.param_proj.proj"],
             "in_projection": ["module.in_proj", "module.mask_encoding"],
@@ -275,6 +303,9 @@ class MoiraiFinetune(L.LightningModule):
 
         print("\n\n FROZEN MODULES:")
         print(frozen_modules, "\n\n")
+        print("\n\n FROZEN ENCODER LAYERS:")
+        print(modules_prefix["encoder"])
+        print("out of ", self.module.num_layers, " layers\n\n")
         print("\n\n NON FROZEN MODULES:")
         print([a for a in modules_prefix.keys() if a not in frozen_modules], "\n\n")
 

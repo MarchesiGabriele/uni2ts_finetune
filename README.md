@@ -33,14 +33,15 @@ which divides into
 ## Techniques
 ### Full Fine Tune
 [x] fft with stock hyperparams -> overfitting
-[] fft with custom dropout=0.3, attndropout=0.3, weigth decay=1e-3, lr=1e-5, patience=5, -> TODO
+[x] fft with custom dropout=0.3, attndropout=0.3, weigth decay=1e-3, lr=1e-5, patience=5 -> obtained worse results than stock fft 
 
 
 ### Only fine tune last layers of the transformers
-[] Keep Projection layers frozen, only un-freeze the last transformers layers (selfatt, ffn, norm)
-[] Keep Projection layers frozen, only un-freeze the last transformers layers (selfatt)
-[] Keep Projection layers frozen, only un-freeze the last transformers layers (ffn)
-[] Keep Projection layers frozen, only un-freeze the last transformers layers (norm)
+[] Freeze everything except output projection layers
+[] Freeze everything except output and input projection layers
+[] Freeze everything except output projection layers and last transformer layer (only norm)
+[] Freeze everything except output projection layers and last transformer layer (only norm and FF)
+[] Freeze everything except output projection layers and last transformer layer (everything)
 
 ### LoRA (Adapter)
 [] Only on the self attention weigth matrices (q,k,v,out) (see lora paper)
