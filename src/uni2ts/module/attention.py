@@ -26,6 +26,10 @@ from torch import nn
 
 from .position import AttentionBias, QueryKeyProjection
 
+import os
+USE_LORA = bool(os.environ["USE_LORA"])
+from uni2ts.module.lora import LoRALinear
+
 # TODO: Support returning weights
 # TODO: Support caching (return past_key_value)
 
@@ -85,9 +89,15 @@ class GroupedQueryAttention(nn.Module):
 
         self.softmax_scale = softmax_scale or 1 / math.sqrt(self.head_dim)
 
-        self.q_proj = nn.Linear(dim, dim, bias=bias)
-        self.k_proj = nn.Linear(dim, self.head_dim * num_groups, bias=bias)
-        self.v_proj = nn.Linear(dim, self.head_dim * num_groups, bias=bias)
+
+        q_proj = nn.Linear(dim, dim, bias=bias)
+        k_proj = nn.Linear(dim, self.head_dim * num_groups, bias=bias)
+        v_proj = nn.Linear(dim, self.head_dim * num_groups, bias=bias)
+
+        self.q_proj = LoRALinear(q_proj) if USE_LORA else q_proj
+        self.k_proj = LoRALinear(k_proj) if USE_LORA else k_proj
+        self.v_proj = LoRALinear(v_proj) if USE_LORA else v_proj
+        
         self.q_norm = (
             norm_layer(self.head_dim) if norm_layer is not None else nn.Identity()
         )
@@ -95,7 +105,9 @@ class GroupedQueryAttention(nn.Module):
             norm_layer(self.head_dim) if norm_layer is not None else nn.Identity()
         )
         self.attn_dropout_p = attn_dropout_p
-        self.out_proj = nn.Linear(dim, dim, bias=bias)
+
+        out_proj = nn.Linear(dim, dim, bias=bias)
+        self.out_proj = LoRALinear(out_proj) if USE_LORA else out_proj
 
     def _get_var_id(
         self,

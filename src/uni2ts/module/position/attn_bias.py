@@ -20,6 +20,10 @@ from einops import rearrange
 from jaxtyping import Float, Int
 from torch import nn
 
+import os
+USE_LORA = bool(os.environ["USE_LORA"])
+from uni2ts.module.lora import LoRAEmbedding
+
 
 class AttentionBias(nn.Module, abc.ABC):
     def __init__(
@@ -67,7 +71,8 @@ class RelativeAttentionBias(AttentionBias):
 class BinaryAttentionBias(AttentionBias):
     def __init__(self, dim: int, num_heads: int, num_groups: int):
         super().__init__(dim, num_heads, num_groups)
-        self.emb = nn.Embedding(num_embeddings=2, embedding_dim=self.num_heads)
+        emb = nn.Embedding(num_embeddings=2, embedding_dim=self.num_heads)
+        self.emb = LoRAEmbedding(emb) if USE_LORA else emb
 
     def forward(
         self,

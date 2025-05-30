@@ -65,6 +65,8 @@ from uni2ts.transform import (
 
 from .module import MoiraiModule
 
+import os
+USE_LORA = bool(os.environ["USE_LORA"])
 
 class MoiraiFinetune(L.LightningModule):
     seq_fields: tuple[str, ...] = (
@@ -114,6 +116,7 @@ class MoiraiFinetune(L.LightningModule):
         print(f"freeze_norm: {freeze_norm}")
         print(f"num_unfrozen_encoder_layers: {num_unfrozen_encoder_layers}" )
         assert(not(freeze_attn and freeze_ffn and freeze_norm) and num_unfrozen_encoder_layers > 0)
+        assert(not(USE_LORA and len(frozen_modules) > 0)) # if we use lora, we don't need to freeze any modules
         assert (module is not None) or (
             module_kwargs is not None
         ), "if module is not provided, module_kwargs is required"
@@ -271,7 +274,7 @@ class MoiraiFinetune(L.LightningModule):
             BinaryAttentionBias,
             LearnedEmbedding,
             RMSNorm,
-            nn.Embedding,
+            # nn.Embedding, # TODO: add this back in
             nn.LayerNorm,
         )
 
@@ -287,6 +290,7 @@ class MoiraiFinetune(L.LightningModule):
                     frozen_encoder_layers.append("module.encoder.layers.{}.norm".format(i))
             else:
                 frozen_encoder_layers.append("module.encoder.layers.{}".format(i))
+
 
 
         modules_prefix =  {
@@ -312,6 +316,7 @@ class MoiraiFinetune(L.LightningModule):
                             p.requires_grad = False
                 
 
+        not_listed_modules_names = []
         for mn, m in self.named_modules():
             for pn, p in m.named_parameters():
                 if not p.requires_grad:
@@ -323,8 +328,19 @@ class MoiraiFinetune(L.LightningModule):
                     no_decay.add(fpn)
                 elif pn.endswith("weight") and isinstance(m, whitelist_params):
                     decay.add(fpn)
+                # elif (pn.endswith("A") or pn.endswith("B")) and isinstance(m, whitelist_params):
+                #     decay.add(fpn)
                 elif pn.endswith("weight") and isinstance(m, blacklist_params):
                     no_decay.add(fpn)
+                # elif (pn.endswith("A") or pn.endswith("B")) and isinstance(m, blacklist_params):
+                #     no_decay.add(fpn)
+                else: 
+                    if not any(type(m) == existing_type for existing_type in not_listed_modules_names):
+                        not_listed_modules_names.append(type(m))
+                    decay.add(fpn)
+
+        print("\n\n NOT LISTED MODULES NAMES:")
+        print(not_listed_modules_names, "\n\n")
 
         # validate that we considered every parameter
         param_dict = {pn: p for pn, p in self.named_parameters() if p.requires_grad}
