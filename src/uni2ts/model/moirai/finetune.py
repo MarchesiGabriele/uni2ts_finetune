@@ -275,19 +275,6 @@ class MoiraiFinetune(L.LightningModule):
             nn.LayerNorm,
         )
 
-        # TODO: MOVE THIS TO A CONFIG FILE
-        # ######################################
-        # # To freeze the entire encoder, put encoder in the frozen_modules list and set num_unfrozen_encoder_layers = 0
-        # # To freeze entire layers of the encoder, put encoder in the frozen_modules list, set num_unfrozen_encoder_layers to the number of layers to keep unfrozen and set to 
-
-        # frozen_modules = ["in_projection", "mask_encoding", "encoder"] 
-        # num_unfrozen_encoder_layers = 1 # if 0, all encoder layers are frozen (else, the last num_unfrozen_encoder_layers are unfrozen)
-        # # if I have unfrozen encoder layers, decide which components should stay frozen (none are frozen by default)
-        # freeze_attn = True 
-        # freeze_ffn = False
-        # freeze_norm = False 
-
-        # ######################################
 
         frozen_encoder_layers = []
         for i in range(self.module.num_layers):
