@@ -102,7 +102,18 @@ class MoiraiFinetune(L.LightningModule):
         lr: float = 1e-3,
         weight_decay: float = 1e-2,
         log_on_step: bool = False,
+        frozen_modules: list[str] = [],
+        num_unfrozen_encoder_layers: int = 0,
+        freeze_attn: bool = False,
+        freeze_ffn: bool = False,
+        freeze_norm: bool = False,
     ):
+        print(f"frozen_modules: {frozen_modules}")
+        print(f"freeze_attn: {freeze_attn}")
+        print(f"freeze_ffn: {freeze_ffn}")
+        print(f"freeze_norm: {freeze_norm}")
+        print(f"num_unfrozen_encoder_layers: {num_unfrozen_encoder_layers}" )
+        assert(not(freeze_attn and freeze_ffn and freeze_norm) and num_unfrozen_encoder_layers > 0)
         assert (module is not None) or (
             module_kwargs is not None
         ), "if module is not provided, module_kwargs is required"
@@ -265,54 +276,51 @@ class MoiraiFinetune(L.LightningModule):
         )
 
         # TODO: MOVE THIS TO A CONFIG FILE
-        ######################################
-        # To freeze the entire encoder, put encoder in the frozen_modules list and set num_unfrozen_encoder_layers = 0
-        # To freeze entire layers of the encoder, put encoder in the frozen_modules list, set num_unfrozen_encoder_layers to the number of layers to keep unfrozen and set to 
+        # ######################################
+        # # To freeze the entire encoder, put encoder in the frozen_modules list and set num_unfrozen_encoder_layers = 0
+        # # To freeze entire layers of the encoder, put encoder in the frozen_modules list, set num_unfrozen_encoder_layers to the number of layers to keep unfrozen and set to 
 
-        frozen_modules = ["in_projection", "mask_encoding", "encoder"] 
-        num_unfrozen_encoder_layers = 1 # if 0, all encoder layers are frozen (else, the last num_unfrozen_encoder_layers are unfrozen)
-        # if I have unfrozen encoder layers, decide which components should stay frozen (none are frozen by default)
-        freeze_attn = True 
-        freeze_ffn = False
-        freeze_norm = False 
+        # frozen_modules = ["in_projection", "mask_encoding", "encoder"] 
+        # num_unfrozen_encoder_layers = 1 # if 0, all encoder layers are frozen (else, the last num_unfrozen_encoder_layers are unfrozen)
+        # # if I have unfrozen encoder layers, decide which components should stay frozen (none are frozen by default)
+        # freeze_attn = True 
+        # freeze_ffn = False
+        # freeze_norm = False 
 
-        ######################################
-
-
-        assert(not(freeze_attn and freeze_ffn and freeze_norm) and num_unfrozen_encoder_layers > 0)
+        # ######################################
 
         frozen_encoder_layers = []
         for i in range(self.module.num_layers):
-            if i >= self.module.num_layers - num_unfrozen_encoder_layers:
-                if freeze_attn:
+            if i >= self.module.num_layers - self.hparams.num_unfrozen_encoder_layers:
+                if self.hparams.freeze_attn:
                     frozen_encoder_layers.append("module.encoder.layers.{}.self_attn".format(i))
-                if freeze_ffn:
+                if self.hparams.freeze_ffn:
                     frozen_encoder_layers.append("module.encoder.layers.{}.ffn".format(i))
-                if freeze_norm:
+                if self.hparams.freeze_norm:
                     frozen_encoder_layers.append("module.encoder.layers.{}.norm".format(i))
             else:
                 frozen_encoder_layers.append("module.encoder.layers.{}".format(i))
 
 
         modules_prefix =  {
-            "encoder": ["module.encoder"] if num_unfrozen_encoder_layers == 0 else frozen_encoder_layers,
+            "encoder": ["module.encoder"] if self.hparams.num_unfrozen_encoder_layers == 0 else frozen_encoder_layers,
             "mask_encoding": ["module.mask_encoding"],
             "out_projection": ["module.param_proj.proj"],
             "in_projection": ["module.in_proj", "module.mask_encoding"],
         }
 
         print("\n\n FROZEN MODULES:")
-        print(frozen_modules, "\n\n")
+        print(self.hparams.frozen_modules, "\n\n")
         print("\n\n FROZEN ENCODER LAYERS:")
         print(modules_prefix["encoder"])
         print("out of ", self.module.num_layers, " layers\n\n")
         print("\n\n NON FROZEN MODULES:")
-        print([a for a in modules_prefix.keys() if a not in frozen_modules], "\n\n")
+        print([a for a in modules_prefix.keys() if a not in self.hparams.frozen_modules], "\n\n")
 
         for mn, m in self.named_modules():
             for pn, p in m.named_parameters():
                 for module_name, prefixes in modules_prefix.items():
-                    if module_name in frozen_modules:
+                    if module_name in self.hparams.frozen_modules:
                         if any(pn.startswith(prefix) for prefix in prefixes):
                             p.requires_grad = False
                 
