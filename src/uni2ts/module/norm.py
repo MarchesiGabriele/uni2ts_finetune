@@ -41,7 +41,7 @@ class RMSNorm(nn.Module):
         self.mean_dim = tuple(range(-len(normalized_shape), 0))
 
         if weight:
-            w = torch.nn.Parameter(torch.ones(normalized_shape, dtype=dtype), requires_grad= not USE_LORA)
+            w = torch.nn.Parameter(torch.ones(normalized_shape, dtype=dtype))
             self.weight = LoRANorm(w) if USE_LORA else w
         else:
             self.register_parameter("weight", None)
@@ -52,7 +52,10 @@ class RMSNorm(nn.Module):
         output = x * torch.rsqrt(
             x.pow(2).mean(dim=self.mean_dim, keepdim=True) + self.eps
         )
+        print("output shape:", output.shape)
         if self.weight is not None:
+            if USE_LORA:
+                return self.weight(output)
             return output * self.weight
         return output
 

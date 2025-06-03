@@ -58,6 +58,7 @@ class LoRANorm(nn.Module):
 
         # frozen parameter
         self.W = W
+        self.W.requires_grad = False  # freeze original weight
 
         # LoRA parameters
         self.A = nn.Parameter(torch.randn(self.r, k) * 0.01) # 0.01 is for numerical stability
@@ -65,7 +66,7 @@ class LoRANorm(nn.Module):
 
     def forward(self, x):
         # x shape: (batch_size, seq_len, d_in)
-        base = x @ self.W.T  # (B, T, d_out)
-        lora = (x @ self.A.T) @ self.B.T * self.scaling  # (B, T, d_out)
+        base = x * self.W  # moltiplicazione elemento per elemento con il peso originale
+        lora = (x @ self.B) @ self.A * self.scaling  # moltiplicazioni matriciali per LoRA
         return base + lora
 
