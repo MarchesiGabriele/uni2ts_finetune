@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class LoRALinear(nn.Module):
     def __init__(self, linear: nn.Linear):
@@ -19,54 +20,58 @@ class LoRALinear(nn.Module):
         
         
     def forward(self, x):
-        result = self.linear(x)  # include bias originale
-        
-        lora_update = (x @ self.A.T) @ self.B.T * self.scaling
-        
-        return result + lora_update
+        # Original linear transformation
+        result = self.linear(x)  # W @ x + b
 
-class LoRAEmbedding(nn.Module):
-    def __init__(self, embedding: nn.Embedding):
-        super().__init__()
-        self.r = 2 # TODO: make this a parameter in the config
-        self.alpha = 16 # TODO: make this a parameter in the config
-        self.scaling = self.alpha / self.r
-
-        self.embedding = embedding
-        self.embedding.weight.requires_grad = False  # freeze original weight
-
-        self.A = nn.Parameter(torch.randn(self.r, self.embedding.weight.shape[1]) * 0.01)
-        self.B = nn.Parameter(torch.zeros(self.embedding.weight.shape[1], self.r))
-        
-        
-    def forward(self, x):
-        result = self.embedding(x)  # include bias originale
-        
-        lora_update = (x @ self.A.T) @ self.B.T * self.scaling
+        # LoRA adaptation: (B @ A) @ x = B @ (A @ x)
+        lora_update = F.linear(F.linear(x, self.A), self.B) * self.scaling
         
         return result + lora_update
 
+# class LoRAEmbedding(nn.Module):
+#     def __init__(self, embedding: nn.Embedding):
+#         super().__init__()
+#         self.r = 2 # TODO: make this a parameter in the config
+#         self.alpha = 16 # TODO: make this a parameter in the config
+#         self.scaling = self.alpha / self.r
+
+#         self.embedding = embedding
+#         self.embedding.weight.requires_grad = False  # freeze original weight
+
+#         self.A = nn.Parameter(torch.randn(self.r, self.embedding.weight.shape[0]) * 0.01)
+#         self.B = nn.Parameter(torch.zeros(self.embedding.weight.shape[1], self.r))
+        
+#     @property
+#     def weight(self):
+#         print("A shape:", self.A.shape)
+#         print("B shape:", self.B.shape) 
+#         print("embedding shape:", self.embedding.weight.shape)
+#         print("A @ B shape:", (self.A @ self.B).shape)
+#         return self.embedding.weight + (self.A @ self.B) * self.scaling
+        
+#     def forward(self, x): # not used
+#         pass
 
 
-class LoRANorm(nn.Module):
-    def __init__(self, W: nn.Parameter):
-        super().__init__()
-        k = W.shape[0]
-        self.r = 2 # TODO: make this a parameter in the config
-        self.alpha = 16 # TODO: make this a parameter in the config
-        self.scaling = self.alpha / self.r
 
-        # frozen parameter
-        self.W = W
-        self.W.requires_grad = False  # freeze original weight
+# class LoRANorm(nn.Module):
+#     def __init__(self, W: nn.Parameter):
+#         super().__init__()
+#         k = W.shape[0]
+#         self.r = 2 # TODO: make this a parameter in the config
+#         self.alpha = 16 # TODO: make this a parameter in the config
+#         self.scaling = self.alpha / self.r
 
-        # LoRA parameters
-        self.A = nn.Parameter(torch.randn(self.r, k) * 0.01) # 0.01 is for numerical stability
-        self.B = nn.Parameter(torch.zeros(k, self.r))
+#         # frozen parameter
+#         self.W = W
+#         self.W.requires_grad = False  # freeze original weight
 
-    def forward(self, x):
-        # x shape: (batch_size, seq_len, d_in)
-        base = x * self.W  # moltiplicazione elemento per elemento con il peso originale
-        lora = (x @ self.B) @ self.A * self.scaling  # moltiplicazioni matriciali per LoRA
-        return base + lora
+#         # LoRA parameters
+#         self.A = nn.Parameter(torch.randn(self.r, k) * 0.01) # 0.01 is for numerical stability
+#         self.B = nn.Parameter(torch.zeros(k, self.r))
+
+#     def forward(self, x):
+#         base = x * self.W  
+#         lora = (x @ self.B) @ self.A * self.scaling  
+#         return base + lora
 

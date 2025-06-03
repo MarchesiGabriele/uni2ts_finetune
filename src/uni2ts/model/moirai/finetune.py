@@ -24,6 +24,7 @@ import torch
 from jaxtyping import Bool, Float, Int
 from torch import nn
 from torch.distributions import Distribution
+from uni2ts.module.lora import LoRALinear
 
 from uni2ts.loss.packed import (
     PackedDistributionLoss,
@@ -274,7 +275,7 @@ class MoiraiFinetune(L.LightningModule):
             BinaryAttentionBias,
             LearnedEmbedding,
             RMSNorm,
-            # nn.Embedding, # TODO: add this back in
+            nn.Embedding, # TODO: add this back in
             nn.LayerNorm,
         )
 
@@ -302,9 +303,8 @@ class MoiraiFinetune(L.LightningModule):
 
         print("\n\n FROZEN MODULES:")
         print(self.hparams.frozen_modules, "\n\n")
-        print("\n\n FROZEN ENCODER LAYERS:")
-        print(modules_prefix["encoder"])
-        print("out of ", self.module.num_layers, " layers\n\n")
+        print("\n\n FROZEN ENCODER LAYERS (out of ", self.module.num_layers, " layers):")
+        print(frozen_encoder_layers if len(self.hparams.frozen_modules) else [], "\n\n")
         print("\n\n NON FROZEN MODULES:")
         print([a for a in modules_prefix.keys() if a not in self.hparams.frozen_modules], "\n\n")
 
@@ -314,13 +314,20 @@ class MoiraiFinetune(L.LightningModule):
                     if module_name in self.hparams.frozen_modules:
                         if any(pn.startswith(prefix) for prefix in prefixes):
                             p.requires_grad = False
-                
+
+        if USE_LORA:
+            for mn, m in self.named_modules():
+                for pn, p in m.named_parameters():
+                    if "A" not in pn and "B" not in pn:
+                        p.requires_grad = False
 
         not_listed_modules_names = []
         for mn, m in self.named_modules():
             for pn, p in m.named_parameters():
                 if not p.requires_grad:
                     # print(f"Parameter {pn} does not require grad")
+                    # print(f"Module {type(m)} does not require grad")
+                    # print(isinstance(m, LoRALinear))
                     continue
 
                 fpn = f"{mn}.{pn}" if mn else pn
@@ -328,16 +335,15 @@ class MoiraiFinetune(L.LightningModule):
                     no_decay.add(fpn)
                 elif pn.endswith("weight") and isinstance(m, whitelist_params):
                     decay.add(fpn)
-                # elif (pn.endswith("A") or pn.endswith("B")) and isinstance(m, whitelist_params):
-                #     decay.add(fpn)
                 elif pn.endswith("weight") and isinstance(m, blacklist_params):
                     no_decay.add(fpn)
-                # elif (pn.endswith("A") or pn.endswith("B")) and isinstance(m, blacklist_params):
-                #     no_decay.add(fpn)
                 else: 
+                    if "norm" in fpn or "bias" in fpn or "mask_encoding" in fpn: # Added no decay for norm, bias, and mask_encoding
+                        no_decay.add(fpn)
+                    else:
+                        decay.add(fpn)
                     if not any(type(m) == existing_type for existing_type in not_listed_modules_names):
                         not_listed_modules_names.append(type(m))
-                    decay.add(fpn)
 
         print("\n\n NOT LISTED MODULES NAMES:")
         print(not_listed_modules_names, "\n\n")

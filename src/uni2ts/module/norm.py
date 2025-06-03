@@ -18,10 +18,6 @@ from typing import Optional
 import torch
 from jaxtyping import Float
 from torch import nn
-from uni2ts.module.lora import LoRANorm
-
-import os 
-USE_LORA = os.environ["USE_LORA"]
 
 
 class RMSNorm(nn.Module):
@@ -41,8 +37,7 @@ class RMSNorm(nn.Module):
         self.mean_dim = tuple(range(-len(normalized_shape), 0))
 
         if weight:
-            w = torch.nn.Parameter(torch.ones(normalized_shape, dtype=dtype))
-            self.weight = LoRANorm(w) if USE_LORA else w
+            self.weight = torch.nn.Parameter(torch.ones(normalized_shape, dtype=dtype))
         else:
             self.register_parameter("weight", None)
 
@@ -52,10 +47,7 @@ class RMSNorm(nn.Module):
         output = x * torch.rsqrt(
             x.pow(2).mean(dim=self.mean_dim, keepdim=True) + self.eps
         )
-        print("output shape:", output.shape)
         if self.weight is not None:
-            if USE_LORA:
-                return self.weight(output)
             return output * self.weight
         return output
 
