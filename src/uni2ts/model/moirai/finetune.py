@@ -116,8 +116,8 @@ class MoiraiFinetune(L.LightningModule):
         print(f"freeze_ffn: {freeze_ffn}")
         print(f"freeze_norm: {freeze_norm}")
         print(f"num_unfrozen_encoder_layers: {num_unfrozen_encoder_layers}" )
-        assert(not(freeze_attn and freeze_ffn and freeze_norm) and num_unfrozen_encoder_layers > 0)
-        assert(not(USE_LORA and len(frozen_modules) > 0)) # if we use lora, we don't need to freeze any modules
+        if num_unfrozen_encoder_layers > 0 and (freeze_attn and freeze_ffn and freeze_norm): raise ValueError("If some encoder layers are unfrozen, then at least one of freeze_attn, freeze_ffn, or freeze_norm must be False")
+        if USE_LORA and len(frozen_modules) > 0: raise ValueError("If we use lora, we don't need to freeze any modules")
         assert (module is not None) or (
             module_kwargs is not None
         ), "if module is not provided, module_kwargs is required"
