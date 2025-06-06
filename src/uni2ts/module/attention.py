@@ -27,7 +27,8 @@ from torch import nn
 from .position import AttentionBias, QueryKeyProjection
 
 import os
-USE_LORA = bool(os.environ["USE_LORA"])
+USE_LORA = os.environ["USE_LORA"] == "True"
+
 from uni2ts.module.lora import LoRALinear
 
 # TODO: Support returning weights

@@ -67,7 +67,7 @@ from uni2ts.transform import (
 from .module import MoiraiModule
 
 import os
-USE_LORA = bool(os.environ["USE_LORA"])
+USE_LORA = os.environ["USE_LORA"] == "True"
 
 class MoiraiFinetune(L.LightningModule):
     seq_fields: tuple[str, ...] = (
