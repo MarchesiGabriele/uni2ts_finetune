@@ -275,7 +275,7 @@ class MoiraiFinetune(L.LightningModule):
             BinaryAttentionBias,
             LearnedEmbedding,
             RMSNorm,
-            nn.Embedding, # TODO: add this back in
+            nn.Embedding, 
             nn.LayerNorm,
         )
 
@@ -325,7 +325,7 @@ class MoiraiFinetune(L.LightningModule):
         for mn, m in self.named_modules():
             for pn, p in m.named_parameters():
                 if not p.requires_grad:
-                    # print(f"Parameter {pn} does not require grad")
+                    print(f"Parameter {pn} does not require grad")
                     # print(f"Module {type(m)} does not require grad")
                     # print(isinstance(m, LoRALinear))
                     continue
